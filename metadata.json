@@ -1,0 +1,12 @@
+{
+  "name": "ComunicaLibras",
+  "description": "Aplicativo de acessibilidade e comunicação entre pessoas surdas e ouvintes, com tradução de Libras, chat com IA e funções de emergência.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

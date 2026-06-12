@@ -1,0 +1,75 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #0ea5e9;
+  --color-primary-dark: #0284c7;
+  --color-secondary: #0f172a;
+}
+
+body {
+  @apply bg-[#0f172a] text-white;
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+body.high-contrast {
+  @apply bg-black text-white;
+}
+
+body.high-contrast * {
+  border-color: white !important;
+}
+
+body.larger-text {
+  font-size: 110%;
+}
+body.larger-text h1, body.larger-text h2, body.larger-text h3 {
+  font-size: 115%;
+}
+
+.mesh-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  background: 
+    radial-gradient(at 0% 0%, #1e3a8a 0, transparent 50%),
+    radial-gradient(at 100% 0%, #581c87 0, transparent 50%),
+    radial-gradient(at 50% 50%, #0f766e 0, transparent 50%),
+    radial-gradient(at 0% 100%, #1e40af 0, transparent 50%);
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-panel-heavy {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.glass-header {
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.2);
+  border-radius: 4px;
+}
