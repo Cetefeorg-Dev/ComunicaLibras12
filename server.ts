@@ -17,9 +17,25 @@ async function startServer() {
       if (!process.env.GEMINI_API_KEY) {
         throw new Error("GEMINI_API_KEY is not set.");
       }
-      ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY.trim() });
     }
     return ai;
+  };
+
+  // Helper to handle AI Errors
+  const handleAIError = (error: any, res: express.Response) => {
+    console.error("AI Error:", error);
+    const isAuthError = error?.message?.includes("authentication") || error?.status === 401;
+    const isModelError = error?.status === 503 || error?.message?.includes("model") || error?.status === 429;
+    
+    let errorMessage = error.message;
+    if (isAuthError) {
+      errorMessage = "Erro de autenticação: Chave de API (GEMINI_API_KEY) inválida ou não configurada corretamente. Por favor, gere uma chave válida no Google AI Studio (iniciando com 'AIza...').";
+    } else if (isModelError) {
+      errorMessage = "Serviço da IA está temporariamente indisponível devido a alta demanda ou limite de requisições. Tente novamente em alguns segundos.";
+    }
+
+    res.status(isAuthError ? 401 : 500).json({ error: errorMessage });
   };
 
   // API Route: Correct and simplify text
@@ -44,12 +60,7 @@ Texto original:
 
       res.json({ result: response.text?.trim() });
     } catch (error: any) {
-      console.error("AI Error:", error);
-      const isAuthError = error?.message?.includes("authentication") || error?.status === 401;
-      const errorMessage = isAuthError 
-        ? "Erro de autenticação da IA. Verifique se a chave GEMINI_API_KEY está configurada corretamente no servidor ou no .env" 
-        : error.message;
-      res.status(isAuthError ? 401 : 500).json({ error: errorMessage });
+      handleAIError(error, res);
     }
   });
 
@@ -75,8 +86,7 @@ Retorne AS 3 SUGESTÕES SEPARADAS POR BARRA VERTICAL (|) e mais nada.
       const suggestions = text.split("|").map(s => s.trim()).filter(Boolean);
       res.json({ suggestions });
     } catch (error: any) {
-      console.error("AI Error:", error);
-      res.status(500).json({ error: error.message });
+      handleAIError(error, res);
     }
   });
 
@@ -120,8 +130,7 @@ Entrada do usuário:
 
       res.json({ result: response.text?.trim() });
     } catch (error: any) {
-      console.error("AI Error:", error);
-      res.status(500).json({ error: error.message });
+      handleAIError(error, res);
     }
   });
 
@@ -160,8 +169,7 @@ IMPORTANTE: Não explique o que você está vendo nem forneça notas textuais. A
 
       res.json({ result: response.text?.trim() });
     } catch (error: any) {
-      console.error("AI Error:", error);
-      res.status(500).json({ error: error.message });
+      handleAIError(error, res);
     }
   });
 
