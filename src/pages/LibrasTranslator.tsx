@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Camera, Video, Square, RefreshCcw, HandMetal, Share2, Copy, Upload, X } from 'lucide-react';
+import { ArrowLeft, Camera, Video, Square, RefreshCcw, HandMetal, Share2, Copy, Upload, X, Send } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 
@@ -15,6 +15,7 @@ export function LibrasTranslator() {
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [loadingText, setLoadingText] = useState("");
+  const recordingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     async function setupCamera() {
@@ -38,78 +39,101 @@ export function LibrasTranslator() {
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+      }
     };
   }, [videoFile]);
 
   const processVideoTranslation = async () => {
-    if (!videoRef.current) return;
-    const video = videoRef.current;
+    if (!videoFile) return;
     
     setIsProcessing(true);
+    setLoadingText("Enviando vídeo para a IA...");
     setTranslatedText("");
     
-    // Animações de status simulando steps reais para o usuário
-    setLoadingText("Extraindo frames do vídeo...");
+    const reader = new FileReader();
+    reader.readAsDataURL(videoFile);
+    reader.onloadend = async () => {
+      const base64data = reader.result as string;
+      try {
+        const response = await fetch("/api/ai/translate-video", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ video: base64data, mimeType: videoFile.type }),
+        });
+
+        if (!response.ok) throw new Error("Falha ao comunicar com a IA");
+
+        const data = await response.json();
+        setTranslatedText(data.result || "Não entendi os sinais ou o vídeo está confuso.");
+      } catch (err) {
+        console.error(err);
+        setTranslatedText("Não foi possível realizar a tradução. A IA pode estar offline ou não detectou os gestos.");
+      } finally {
+        setIsProcessing(false);
+      }
+    };
+  };
+
+  const processRealtimeChunk = () => {
+    if (!stream) return;
+    const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+    const chunks: BlobPart[] = [];
     
-    try {
-      // Pega 4 frames do vídeo atual
-      const frames: string[] = [];
-      const canvas = document.createElement("canvas");
-      // Resolução segura e leve
-      canvas.width = 320;
-      canvas.height = 240;
-      const ctx = canvas.getContext("2d");
-      
-      if (!ctx) throw new Error("Failed to get canvas target");
-
-      // Captura o momento exato atual + alguns extras 
-      // Se for galeria, a gente tentaria pular, mas por simplicidade pegamos sequencial com pequeno delay
-      for (let i = 0; i < 4; i++) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        frames.push(canvas.toDataURL("image/jpeg", 0.5));
-        await new Promise(r => setTimeout(r, 400)); // Espera quase meio segundo entre frames p/ pegar ação
-      }
-      
-      setLoadingText("Enviando vídeo para a IA...");
-      
-      const response = await fetch("/api/ai/translate-video", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ frames }),
-      });
-
-      setLoadingText("Processando tradução de Libras...");
-
-      if (!response.ok) {
-        throw new Error("Falha ao comunicar com a IA");
-      }
-
-      const data = await response.json();
-      setTranslatedText(data.result || "Nenhum sinal detectado.");
-      
-    } catch (err) {
-      console.error(err);
-      setTranslatedText("Não foi possível realizar a tradução. A IA pode estar offline ou não detectou os gestos.");
-    } finally {
-      setIsProcessing(false);
-      setIsRecording(false);
-    }
+    recorder.ondataavailable = e => {
+      if (e.data.size > 0) chunks.push(e.data);
+    };
+    
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      reader.onloadend = async () => {
+        const base64data = reader.result as string;
+        try {
+          const response = await fetch("/api/ai/translate-video", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ video: base64data, mimeType: "video/webm" }),
+          });
+          const data = await response.json();
+          if (data.result && data.result.trim() !== "" && !data.result.toLowerCase().includes("não entendi") && !data.result.toLowerCase().includes("movimento não reconhecido")) {
+            setTranslatedText(prev => {
+               if (prev && prev.endsWith(data.result)) return prev;
+               return prev ? `${prev} ${data.result}` : data.result;
+            });
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      };
+    };
+    
+    recorder.start();
+    // Record for 3.5 seconds
+    setTimeout(() => {
+      if (recorder.state === 'recording') recorder.stop();
+    }, 3500);
   };
 
   const toggleRecording = () => {
     if (isRecording) {
       setIsRecording(false);
-      processVideoTranslation();
+      if (recordingIntervalRef.current) {
+        clearInterval(recordingIntervalRef.current);
+        recordingIntervalRef.current = null;
+      }
+      setLoadingText("");
     } else {
       setIsRecording(true);
       setTranslatedText("");
-      setLoadingText("Gravando sinais...");
-      // Auto-processa após 3 segundos
-      setTimeout(() => {
-         processVideoTranslation();
-      }, 3000);
+      setLoadingText("Gravando e traduzindo ao vivo...");
+      
+      processRealtimeChunk();
+      recordingIntervalRef.current = setInterval(() => {
+        processRealtimeChunk();
+      }, 5000);
     }
   };
 
@@ -266,7 +290,7 @@ export function LibrasTranslator() {
           />
 
           <button
-            onClick={videoFile ? processVideoTranslation : toggleRecording}
+            onClick={() => videoFile ? processVideoTranslation() : toggleRecording()}
             disabled={isProcessing}
             className={`w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all border ${
               isRecording || isProcessing
@@ -274,7 +298,13 @@ export function LibrasTranslator() {
                 : 'bg-cyan-500/80 scale-100 hover:bg-cyan-400 border-cyan-300/50 shadow-[0_0_20px_rgba(34,211,238,0.4)]'
             }`}
           >
-            {isRecording || isProcessing ? <Square className="w-8 h-8 fill-white text-white animate-pulse" /> : <Video className="w-8 h-8 text-white fill-white" />}
+            {isRecording || isProcessing ? (
+               <Square className="w-8 h-8 fill-white text-white animate-pulse" /> 
+            ) : videoFile ? (
+               <Send className="w-8 h-8 text-white fill-white" />
+            ) : (
+               <Video className="w-8 h-8 text-white fill-white" />
+            )}
           </button>
           
           <div className="w-[56px]" />

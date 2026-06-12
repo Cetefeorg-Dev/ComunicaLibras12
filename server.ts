@@ -37,7 +37,7 @@ Texto original:
 "${text}"`;
 
       const response = await api.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-2.5-flash-lite",
         contents: prompt,
       });
 
@@ -62,7 +62,7 @@ Retorne AS 3 SUGESTÕES SEPARADAS POR BARRA VERTICAL (|) e mais nada.
 "${context}"`;
 
       const response = await api.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-2.5-flash-lite",
         contents: prompt,
       });
 
@@ -109,7 +109,7 @@ Entrada do usuário:
 "${text}"`;
 
       const response = await api.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-2.5-flash-lite",
         contents: prompt,
       });
 
@@ -121,38 +121,36 @@ Entrada do usuário:
   });
 
   // API Route: Translate video frames
-  app.post("/api/ai/translate-video", express.json({limit: '20mb'}), async (req, res) => {
+  app.post("/api/ai/translate-video", express.json({limit: '50mb'}), async (req, res) => {
     try {
-      const { frames } = req.body;
-      if (!frames || !Array.isArray(frames)) {
-        return res.status(400).json({ error: "No frames provided" });
+      const { video, mimeType } = req.body;
+      if (!video) {
+        return res.status(400).json({ error: "No video provided" });
       }
 
       const api = initAI();
 
-      const parts = frames.map((frameValue: string) => {
-        // Strip the data:image/jpeg;base64, part
-        const base64Data = frameValue.replace(/^data:image\/\w+;base64,/, "");
-        return {
-          inlineData: {
-            data: base64Data,
-            mimeType: "image/jpeg"
-          }
-        };
-      });
+      const base64Data = video.replace(/^data:(.*);base64,/, "");
+      const videoPart = {
+        inlineData: {
+          data: base64Data,
+          mimeType: mimeType || "video/webm"
+        }
+      };
 
       const promptPart = {
         text: `Você é uma Inteligência Artificial tradutora de Língua Brasileira de Sinais (Libras). 
-Abaixo estão alguns frames sequenciais extraídos de um vídeo de uma pessoa. 
-Por favor, analise a expressão facial, os movimentos das mãos e a postura.
-Tente interpretar os gestos observados e dê um palpite da frase ou ação que a pessoa estaria expressando (Ex: "Estou feliz!", "Preciso de ajuda", "Tudo bem?").
-Caso não consiga reconhecer um sinal claro, faça uma leitura corporal e invente uma tradução provável e educada (uma frase de no máximo 5 palavras).
-IMPORTANTE: Não explique o que você está vendo. Apenas retorne a Frase Final Traduzida diretamente, como se você fosse o tradutor escrevendo a legenda final na tela. Nada a mais.`
+Abaixo está um pequeno clipe de vídeo do usuário sinalizando.
+Analise as expressões faciais e os movimentos.
+Sua tarefa é interpretar os sinais observados e formar uma frase fluida e natural em Português.
+Desconsidere completamente movimentos aleatórios ou pausas.
+Se os sinais não formarem um sentido lógico claro, ou for apenas movimentos sem sentido, responda com texto vazio ou uma das opções: "Não entendi" ou "Movimento não reconhecido".
+IMPORTANTE: Não explique o que você está vendo nem forneça notas textuais. Apenas retorne a FRASE FINAL TRADUZIDA diretamente. Nada a mais.`
       };
 
       const response = await api.models.generateContent({
-        model: "gemini-1.5-flash",
-        contents: [promptPart, ...parts],
+        model: "gemini-2.5-flash",
+        contents: [promptPart, videoPart],
       });
 
       res.json({ result: response.text?.trim() });
