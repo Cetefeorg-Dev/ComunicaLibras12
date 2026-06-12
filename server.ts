@@ -37,7 +37,7 @@ Texto original:
 "${text}"`;
 
       const response = await api.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-1.5-flash",
         contents: prompt,
       });
 
@@ -62,7 +62,7 @@ Retorne AS 3 SUGESTÕES SEPARADAS POR BARRA VERTICAL (|) e mais nada.
 "${context}"`;
 
       const response = await api.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-1.5-flash",
         contents: prompt,
       });
 
@@ -109,7 +109,7 @@ Entrada do usuário:
 "${text}"`;
 
       const response = await api.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-1.5-flash",
         contents: prompt,
       });
 
@@ -151,7 +151,7 @@ IMPORTANTE: Não explique o que você está vendo. Apenas retorne a Frase Final 
       };
 
       const response = await api.models.generateContent({
-        model: "gemini-2.0-flash",
+        model: "gemini-1.5-flash",
         contents: [promptPart, ...parts],
       });
 

@@ -136,9 +136,6 @@ export function LibrasTranslator() {
 
       if (videoRef.current) {
         videoRef.current.srcObject = null;
-        videoRef.current.src = url;
-        videoRef.current.load();
-        videoRef.current.play().catch(console.error);
       }
     }
   };
